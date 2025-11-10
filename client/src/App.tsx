@@ -10,7 +10,6 @@ import ChildLockSetupPage from "@/pages/ChildLockSetupPage";
 import ParentDashboard from "@/pages/ParentDashboard";
 import ChildModePage from "@/pages/ChildModePage";
 import NotFound from "@/pages/not-found";
-import "@/lib/firebase";
 
 function Router() {
   return (

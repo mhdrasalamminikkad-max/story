@@ -18,7 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { insertStorySchema } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
-import { getAuth, signOut } from "firebase/auth";
+import { fakeAuth } from "@/lib/auth";
 import teddyImage from "@assets/generated_images/Teddy_bear_reading_story_502f26a8.png";
 import bunnyImage from "@assets/generated_images/Bunny_on_cloud_e358044b.png";
 import owlImage from "@assets/generated_images/Owl_with_lantern_4320ef2c.png";
@@ -27,7 +27,6 @@ import foxImage from "@assets/generated_images/Fox_reading_by_candlelight_2780dc
 export default function ParentDashboard() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const auth = getAuth();
   const [showAddStory, setShowAddStory] = useState(false);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
 
@@ -87,8 +86,8 @@ export default function ParentDashboard() {
     },
   });
 
-  const handleSignOut = async () => {
-    await signOut(auth);
+  const handleSignOut = () => {
+    fakeAuth.signOut();
     setLocation("/");
   };
 

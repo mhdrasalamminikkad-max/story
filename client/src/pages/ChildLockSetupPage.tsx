@@ -16,12 +16,11 @@ import { insertParentSettingsSchema } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { getAuth } from "firebase/auth";
+import { fakeAuth } from "@/lib/auth";
 
 export default function ChildLockSetupPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const auth = getAuth();
   const [readingTime, setReadingTime] = useState(30);
 
   const form = useForm({
@@ -56,7 +55,7 @@ export default function ChildLockSetupPage() {
   });
 
   const onSubmit = (data: any) => {
-    if (!auth.currentUser) {
+    if (!fakeAuth.isAuthenticated()) {
       toast({
         title: "Not authenticated",
         description: "Please sign in first.",

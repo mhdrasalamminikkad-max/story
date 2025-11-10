@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { LogIn, Sparkles, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { fakeAuth } from "@/lib/auth";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
@@ -23,8 +24,7 @@ export default function AuthPage() {
     setLoading(true);
 
     setTimeout(() => {
-      localStorage.setItem("fakeAuth", "true");
-      localStorage.setItem("fakeUser", JSON.stringify({ email }));
+      fakeAuth.signIn(email);
       
       toast({
         title: isSignUp ? "Account created!" : "Welcome back!",

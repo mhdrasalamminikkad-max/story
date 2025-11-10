@@ -1,24 +1,15 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { getAuth } from "firebase/auth";
-
-async function getAuthToken(): Promise<string | null> {
-  const auth = getAuth();
-  const user = auth.currentUser;
-  if (!user) return null;
-  
-  try {
-    return await user.getIdToken();
-  } catch (error) {
-    console.error("Failed to get auth token:", error);
-    return null;
-  }
-}
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
+}
+
+function getFakeAuthToken(): string | null {
+  const isAuthenticated = localStorage.getItem("fakeAuth") === "true";
+  return isAuthenticated ? "fake-token-123" : null;
 }
 
 export async function apiRequest(
@@ -28,7 +19,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   
-  const token = await getAuthToken();
+  const token = getFakeAuthToken();
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
@@ -56,7 +47,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
     
-    const token = await getAuthToken();
+    const token = getFakeAuthToken();
     if (token) {
       headers["Authorization"] = `Bearer ${token}`;
     }

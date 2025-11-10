@@ -1,28 +1,23 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { db } from "./firebase-admin";
 import { authenticateUser, type AuthRequest } from "./middleware/auth";
 import { insertStorySchema, insertParentSettingsSchema, insertBookmarkSchema } from "@shared/schema";
 import type { Story, ParentSettings, Bookmark } from "@shared/schema";
 import { hashPIN, verifyPIN } from "./utils/crypto";
+
+const stories: Story[] = [];
+const parentSettings: Map<string, ParentSettings> = new Map();
+const bookmarks: Bookmark[] = [];
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Stories endpoints
   app.get("/api/stories", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = req.userId!;
-      const storiesSnapshot = await db
-        .collection("stories")
-        .where("userId", "==", userId)
-        .orderBy("createdAt", "desc")
-        .get();
-
-      const stories: Story[] = storiesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Story));
-
-      res.json(stories);
+      const userStories = stories
+        .filter(s => s.userId === userId)
+        .sort((a, b) => b.createdAt - a.createdAt);
+      res.json(userStories);
     } catch (error) {
       console.error("Error fetching stories:", error);
       res.status(500).json({ error: "Failed to fetch stories" });
@@ -31,17 +26,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/stories/preview", async (req, res) => {
     try {
-      const storiesSnapshot = await db
-        .collection("stories")
-        .limit(3)
-        .get();
-
-      const stories: Story[] = storiesSnapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      } as Story));
-
-      res.json(stories);
+      const previewStories = stories.slice(0, 3);
+      res.json(previewStories);
     } catch (error) {
       console.error("Error fetching preview stories:", error);
       res.status(500).json({ error: "Failed to fetch stories" });
@@ -53,18 +39,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.userId!;
       const storyData = insertStorySchema.parse(req.body);
 
-      const storyRef = await db.collection("stories").add({
+      const story: Story = {
+        id: `story-${Date.now()}`,
         ...storyData,
         userId,
         createdAt: Date.now(),
-      });
-
-      const story: Story = {
-        id: storyRef.id,
-        ...storyData,
-        createdAt: Date.now(),
       };
 
+      stories.push(story);
       res.json(story);
     } catch (error) {
       console.error("Error creating story:", error);
@@ -76,17 +58,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/parent-settings", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = req.userId!;
-      const settingsDoc = await db.collection("parentSettings").doc(userId).get();
+      const settings = parentSettings.get(userId);
 
-      if (!settingsDoc.exists) {
+      if (!settings) {
         res.status(404).json({ error: "Settings not found" });
         return;
       }
-
-      const settings: ParentSettings = {
-        userId,
-        ...settingsDoc.data(),
-      } as ParentSettings;
 
       res.json(settings);
     } catch (error) {
@@ -102,14 +79,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pinHash = hashPIN(settingsData.pin);
 
-      await db.collection("parentSettings").doc(userId).set({
-        pinHash,
-        readingTimeLimit: settingsData.readingTimeLimit,
-        fullscreenLockEnabled: settingsData.fullscreenLockEnabled,
-        theme: settingsData.theme,
-        userId,
-      });
-
       const settings: ParentSettings = {
         userId,
         pinHash,
@@ -118,6 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         theme: settingsData.theme,
       };
 
+      parentSettings.set(userId, settings);
       res.json(settings);
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -135,14 +105,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return;
       }
 
-      const settingsDoc = await db.collection("parentSettings").doc(userId).get();
+      const settings = parentSettings.get(userId);
 
-      if (!settingsDoc.exists) {
+      if (!settings) {
         res.status(404).json({ valid: false, error: "Settings not found" });
         return;
       }
 
-      const settings = settingsDoc.data() as ParentSettings;
       const isValid = verifyPIN(pin, settings.pinHash);
       
       res.json({ valid: isValid });
@@ -156,13 +125,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/bookmarks", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = req.userId!;
-      const bookmarksSnapshot = await db
-        .collection("bookmarks")
-        .where("userId", "==", userId)
-        .get();
-
-      const storyIds: string[] = bookmarksSnapshot.docs.map((doc) => doc.data().storyId);
-
+      const userBookmarks = bookmarks.filter(b => b.userId === userId);
+      const storyIds: string[] = userBookmarks.map(b => b.storyId);
       res.json(storyIds);
     } catch (error) {
       console.error("Error fetching bookmarks:", error);
@@ -175,12 +139,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.userId!;
       const bookmarkData = insertBookmarkSchema.parse(req.body);
 
-      await db.collection("bookmarks").add({
+      const bookmark: Bookmark = {
+        id: `bookmark-${Date.now()}`,
         userId,
         storyId: bookmarkData.storyId,
         createdAt: Date.now(),
-      });
+      };
 
+      bookmarks.push(bookmark);
       res.json({ success: true });
     } catch (error) {
       console.error("Error creating bookmark:", error);
@@ -193,14 +159,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.userId!;
       const { storyId } = req.params;
 
-      const bookmarksSnapshot = await db
-        .collection("bookmarks")
-        .where("userId", "==", userId)
-        .where("storyId", "==", storyId)
-        .get();
-
-      const deletePromises = bookmarksSnapshot.docs.map((doc) => doc.ref.delete());
-      await Promise.all(deletePromises);
+      const index = bookmarks.findIndex(b => b.userId === userId && b.storyId === storyId);
+      if (index !== -1) {
+        bookmarks.splice(index, 1);
+      }
 
       res.json({ success: true });
     } catch (error) {
