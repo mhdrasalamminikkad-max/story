@@ -8,47 +8,32 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
 import { LogIn, Sparkles, UserPlus } from "lucide-react";
 import { useLocation } from "wouter";
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const auth = getAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      if (isSignUp) {
-        await createUserWithEmailAndPassword(auth, email, password);
-        toast({
-          title: "Account created!",
-          description: "Let's set up your child lock preferences.",
-        });
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-        toast({
-          title: "Welcome back!",
-          description: "Redirecting to your dashboard...",
-        });
-      }
-      setLocation("/setup");
-    } catch (error: any) {
-      console.error("Auth error:", error);
+    setTimeout(() => {
+      localStorage.setItem("fakeAuth", "true");
+      localStorage.setItem("fakeUser", JSON.stringify({ email }));
+      
       toast({
-        title: isSignUp ? "Sign up failed" : "Sign in failed",
-        description: error.message || "Please try again.",
-        variant: "destructive",
+        title: isSignUp ? "Account created!" : "Welcome back!",
+        description: "Let's set up your child lock preferences.",
       });
-    } finally {
+      
       setLoading(false);
-    }
+      setLocation("/setup");
+    }, 500);
   };
 
   return (
