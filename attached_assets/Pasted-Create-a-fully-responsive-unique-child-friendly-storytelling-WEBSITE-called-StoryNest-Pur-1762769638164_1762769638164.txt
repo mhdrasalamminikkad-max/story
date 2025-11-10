@@ -1,0 +1,66 @@
+Create a fully responsive, unique, child-friendly storytelling WEBSITE called “StoryNest”.
+
+🎯 Purpose:
+Help parents easily find bedtime stories and help children build reading habits safely online.
+
+🧸 Design Concept:
+The entire site should feel like a cozy, animated bedtime world — with clouds, stars, books, and moonlight themes. 
+Design it for desktop and mobile browsers, not as an app.
+
+🎨 Design Requirements:
+- Use soft pastel gradients (lavender, sky blue, cream yellow, pink mist).
+- Add floating animated clouds and stars (CSS + Framer Motion).
+- Use big rounded buttons and cards (border-radius: 2xl).
+- Font combo: “Fredoka One” for headings, “Poppins” for body text.
+- Gentle shadows, dreamy transitions, subtle glow effects.
+- Illustrations should look friendly and safe (storybook-style).
+- Include a toggle for “Day Mode” (sunrise colors) and “Night Mode” (dark blue + stars).
+
+🧩 Website Structure:
+
+1️⃣ Home Page:
+   - Hero section with tagline: “Stories that grow with your child.”
+   - Buttons: “Parent Login / Sign Up” and “Explore Stories”.
+   - Animated background (floating stars, moon).
+   - Section previewing a few stories with cute thumbnails.
+
+2️⃣ After Login/Signup:
+   - Redirect to **Child Lock Setup Page**
+     - Field to set Parent PIN (4 digits)
+     - Choose reading time limit (10–60 min)
+     - Option to enable fullscreen lock
+     - Save settings → Go to Dashboard
+
+3️⃣ Parent Dashboard:
+   - Show all available stories in cards (title, image, short summary)
+   - Options: Add New Story, Bookmark Story, Activate Child Mode
+   - Button: “Go to Child Mode”
+
+4️⃣ Child Mode (Fullscreen Web Mode):
+   - Fullscreen view (using JavaScript Fullscreen API)
+   - Show one story at a time (title, image, text)
+   - “Read Aloud” button (use Web Speech API for narration)
+   - Cute animations (stars twinkle while reading)
+   - “Exit” button opens Parent PIN dialog to unlock and exit.
+   - Disable ESC / Alt+Tab / Back navigation during reading (lock mode simulation)
+
+5️⃣ Footer:
+   - Soft gradient footer with moon + stars icon
+   - Credits: “Made with 💛 for dreamers and readers.”
+
+⚙️ Technical Setup:
+- Framework: React + Vite (for fast loading)
+- Styling: TailwindCSS + Framer Motion
+- Auth & DB: Firebase Authentication + Firestore
+- Child Lock: Use Fullscreen API + Wake Lock API (web only)
+- Narration: Web Speech API
+- Hosting: Any web host (Firebase Hosting / Render / Netlify)
+
+📱 Responsiveness:
+- Mobile-first layout that adapts perfectly to tablets & browsers
+- Smooth animations but light on performance
+- No app download — runs entirely as a website.
+
+💫 Goal:
+A magical, storybook-style website that parents trust and children love to explore — not a boring web app. 
+Every element should feel alive, warm, and built with imagination.
