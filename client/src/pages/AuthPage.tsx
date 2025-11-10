@@ -138,7 +138,7 @@ export default function AuthPage() {
                   <div className="text-center">
                     <Button
                       type="button"
-                      variant="link"
+                      variant="ghost"
                       onClick={() => setIsSignUp(!isSignUp)}
                       className="text-sm"
                     >
