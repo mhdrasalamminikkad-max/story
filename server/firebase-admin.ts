@@ -1,7 +1,9 @@
 import admin from "firebase-admin";
+import type { Auth } from "firebase-admin/auth";
+import type { Firestore } from "firebase-admin/firestore";
 
-let db = null;
-let auth = null;
+let db: Firestore | null = null;
+let auth: Auth | null = null;
 
 try {
   if (!admin.apps.length) {
