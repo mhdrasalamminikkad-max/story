@@ -254,7 +254,7 @@ export default function ChildModePage() {
           </Button>
         </header>
 
-        <main className="flex-1 flex flex-col px-4 py-6 overflow-hidden">
+        <main className="flex-1 flex flex-col px-4 py-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStory.id}
