@@ -19,7 +19,12 @@ export default function AuthPage() {
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
+      const user = await signInWithGoogle();
+      
+      // Ensure we have a valid token before proceeding
+      if (user) {
+        await user.getIdToken(true);
+      }
       
       toast({
         title: "Welcome to StoryNest!",
