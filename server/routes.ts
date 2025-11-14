@@ -225,6 +225,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pinHash = hashPIN(settingsData.pin);
 
+      // Check if this is the first user (make them admin automatically)
+      const existingUsers = await db.select().from(parentSettings);
+      const isFirstUser = existingUsers.length === 0;
+
       // SECURITY: isAdmin is never set from client input
       // Only server-controlled fields are set here
       const [settings] = await db
@@ -235,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           readingTimeLimit: settingsData.readingTimeLimit,
           fullscreenLockEnabled: settingsData.fullscreenLockEnabled,
           theme: settingsData.theme,
-          isAdmin: false, // Default to false for new users
+          isAdmin: isFirstUser, // First user becomes admin automatically
         })
         .onConflictDoUpdate({
           target: parentSettings.userId,
