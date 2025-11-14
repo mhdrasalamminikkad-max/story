@@ -58,6 +58,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const previewStories = await db
         .select()
         .from(stories)
+        .where(eq(stories.status, "published"))
         .orderBy(desc(stories.createdAt))
         .limit(3);
       
