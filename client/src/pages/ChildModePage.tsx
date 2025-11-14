@@ -254,7 +254,7 @@ export default function ChildModePage() {
           </Button>
         </header>
 
-        <main className="flex-1 flex flex-col px-4 py-6">
+        <main className="flex-1 flex flex-col px-4 py-6 min-h-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStory.id}
@@ -262,7 +262,7 @@ export default function ChildModePage() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.4 }}
-              className="flex-1 flex flex-col max-w-5xl mx-auto w-full"
+              className="flex-1 flex flex-col max-w-5xl mx-auto w-full min-h-0"
             >
               <motion.h1 
                 className="font-heading text-4xl md:text-6xl text-center mb-6 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 bg-clip-text text-transparent"
