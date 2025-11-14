@@ -273,9 +273,9 @@ export default function ChildModePage() {
                 {currentStory.title}
               </motion.h1>
 
-              <div className="flex-1 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md rounded-3xl p-8 md:p-12 shadow-2xl overflow-y-auto border-4 border-purple-200 dark:border-purple-800">
+              <div className="flex-1 bg-white/60 dark:bg-gray-900/60 backdrop-blur-md rounded-3xl p-6 md:p-8 shadow-2xl overflow-y-auto border-4 border-purple-200 dark:border-purple-800">
                 <motion.p 
-                  className="text-2xl md:text-3xl leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap font-medium"
+                  className="text-xl md:text-2xl leading-relaxed text-gray-800 dark:text-gray-100 whitespace-pre-wrap font-medium"
                   animate={isReading ? { opacity: [0.9, 1, 0.9] } : {}}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                   data-testid="text-current-story-content"
