@@ -73,11 +73,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new story (all stories start as draft, must go through review)
+  // Create new story (admins publish immediately, parents create drafts)
   app.post("/api/stories", authenticateUser, async (req: AuthRequest, res) => {
     try {
       const userId = req.userId!;
       const storyData = insertStorySchema.parse(req.body);
+
+      // Check if user is admin
+      const [settings] = await db
+        .select()
+        .from(parentSettings)
+        .where(eq(parentSettings.userId, userId));
+      
+      const isAdmin = settings?.isAdmin || false;
 
       const [story] = await db
         .insert(stories)
@@ -85,9 +93,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: `story-${Date.now()}`,
           ...storyData,
           userId,
-          status: "draft",
-          approvedBy: null,
-          reviewedAt: null,
+          status: isAdmin ? "published" : "draft",
+          approvedBy: isAdmin ? userId : null,
+          reviewedAt: isAdmin ? new Date() : null,
         })
         .returning();
       
