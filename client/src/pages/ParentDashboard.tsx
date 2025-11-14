@@ -8,8 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { StoryCard } from "@/components/StoryCard";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
-import { Plus, Play, LogOut, BookmarkCheck, Shield } from "lucide-react";
+import { Plus, Play, LogOut, BookmarkCheck, Shield, Clock, CheckCircle, XCircle, FileText } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -29,9 +31,14 @@ export default function ParentDashboard() {
   const { toast } = useToast();
   const [showAddStory, setShowAddStory] = useState(false);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
+  const [editingStory, setEditingStory] = useState<Story | null>(null);
 
   const { data: stories = [], isLoading } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
+  });
+
+  const { data: mySubmissions = [], isLoading: loadingSubmissions } = useQuery<Story[]>({
+    queryKey: ["/api/stories/my-submissions"],
   });
 
   const { data: bookmarks = [] } = useQuery<string[]>({
@@ -67,10 +74,43 @@ export default function ParentDashboard() {
       return await res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories/my-submissions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
-      toast({ title: "Story added!", description: "Your new story is ready to read." });
+      toast({ 
+        title: "Story created as draft!", 
+        description: "Your story has been saved. Submit it for review to publish." 
+      });
       setShowAddStory(false);
       form.reset();
+    },
+  });
+
+  const updateStoryMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      // Filter out status to prevent parents from changing it
+      const { status, ...safeData } = data;
+      const res = await apiRequest("PATCH", `/api/stories/${id}`, safeData);
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories/my-submissions"] });
+      toast({ title: "Story updated!", description: "Your draft has been saved." });
+      setEditingStory(null);
+      form.reset();
+    },
+  });
+
+  const submitStoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiRequest("POST", `/api/stories/${id}/submit`, {});
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/stories/my-submissions"] });
+      toast({ 
+        title: "Story submitted!", 
+        description: "Your story has been submitted for admin review." 
+      });
     },
   });
 
@@ -93,6 +133,51 @@ export default function ParentDashboard() {
   const handleSignOut = () => {
     fakeAuth.signOut();
     setLocation("/");
+  };
+
+  const handleEditStory = (story: Story) => {
+    setEditingStory(story);
+    form.reset({
+      title: story.title,
+      content: story.content,
+      summary: story.summary,
+      imageUrl: story.imageUrl,
+      ...(story.voiceoverUrl && { voiceoverUrl: story.voiceoverUrl }),
+    });
+  };
+
+  const handleFormSubmit = (data: any) => {
+    if (editingStory) {
+      updateStoryMutation.mutate({ id: editingStory.id, data });
+    } else {
+      addStoryMutation.mutate(data);
+    }
+  };
+
+  const getStatusBadge = (story: Story) => {
+    // Backend sets rejected stories back to "draft" with rejectionReason
+    if (story.status === "draft" && story.rejectionReason) {
+      return <Badge variant="destructive" data-testid={`badge-rejected`}><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+    }
+    
+    switch (story.status) {
+      case "draft":
+        return <Badge variant="secondary" data-testid={`badge-draft`}><FileText className="w-3 h-3 mr-1" />Draft</Badge>;
+      case "pending_review":
+        return <Badge variant="outline" data-testid={`badge-pending`}><Clock className="w-3 h-3 mr-1" />Pending Review</Badge>;
+      case "published":
+        return <Badge variant="default" data-testid={`badge-published`}><CheckCircle className="w-3 h-3 mr-1" />Published</Badge>;
+      default:
+        return null;
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
   const imageOptions = [
@@ -144,21 +229,21 @@ export default function ParentDashboard() {
           >
             <div className="flex gap-2 flex-wrap">
               <Button
-                onClick={() => setShowAddStory(true)}
+                onClick={() => {
+                  setEditingStory(null);
+                  setShowAddStory(true);
+                  form.reset({
+                    title: "",
+                    content: "",
+                    summary: "",
+                    imageUrl: teddyImage,
+                  });
+                }}
                 className="rounded-2xl"
                 data-testid="button-add-story"
               >
                 <Plus className="w-4 h-4 mr-2" />
-                Add New Story
-              </Button>
-              <Button
-                variant={filterBookmarked ? "default" : "outline"}
-                onClick={() => setFilterBookmarked(!filterBookmarked)}
-                className="rounded-2xl"
-                data-testid="button-filter-bookmarks"
-              >
-                <BookmarkCheck className="w-4 h-4 mr-2" />
-                {filterBookmarked ? "Show All" : "Bookmarked"}
+                Submit Story for Review
               </Button>
             </div>
             <Button
@@ -172,47 +257,160 @@ export default function ParentDashboard() {
             </Button>
           </motion.div>
 
-          {isLoading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading stories...</p>
-            </div>
-          ) : displayedStories.length === 0 ? (
-            <Card className="rounded-3xl border-2 text-center py-12">
-              <CardContent className="pt-6">
-                <p className="text-muted-foreground mb-4">
-                  {filterBookmarked ? "No bookmarked stories yet" : "No stories yet. Add your first one!"}
-                </p>
-                {!filterBookmarked && (
-                  <Button onClick={() => setShowAddStory(true)} className="rounded-2xl">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Story
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {displayedStories.map((story) => (
-                <StoryCard
-                  key={story.id}
-                  story={story}
-                  onRead={(story) => setLocation(`/child-mode?story=${story.id}`)}
-                  onToggleBookmark={(story) => toggleBookmarkMutation.mutate(story.id)}
-                />
-              ))}
-            </div>
-          )}
+          <Tabs defaultValue="published" className="space-y-6">
+            <TabsList data-testid="tabs-parent-dashboard">
+              <TabsTrigger value="published" data-testid="tab-published">
+                Published Stories
+              </TabsTrigger>
+              <TabsTrigger value="yours" data-testid="tab-your-stories">
+                Your Stories
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="published">
+              <div className="mb-4">
+                <Button
+                  variant={filterBookmarked ? "default" : "outline"}
+                  onClick={() => setFilterBookmarked(!filterBookmarked)}
+                  className="rounded-2xl"
+                  data-testid="button-filter-bookmarks"
+                >
+                  <BookmarkCheck className="w-4 h-4 mr-2" />
+                  {filterBookmarked ? "Show All" : "Bookmarked Only"}
+                </Button>
+              </div>
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading stories...</p>
+                </div>
+              ) : displayedStories.length === 0 ? (
+                <Card className="rounded-3xl border-2 text-center py-12">
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground">
+                      {filterBookmarked ? "No bookmarked stories yet" : "No published stories yet"}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {displayedStories.map((story) => (
+                    <StoryCard
+                      key={story.id}
+                      story={story}
+                      onRead={(story) => setLocation(`/child-mode?story=${story.id}`)}
+                      onToggleBookmark={(story) => toggleBookmarkMutation.mutate(story.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="yours">
+              {loadingSubmissions ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Loading your stories...</p>
+                </div>
+              ) : mySubmissions.length === 0 ? (
+                <Card className="rounded-3xl border-2 text-center py-12">
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground mb-4">
+                      You haven't submitted any stories yet
+                    </p>
+                    <Button onClick={() => setShowAddStory(true)} className="rounded-2xl">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Submit Your First Story
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-4">
+                  {mySubmissions.map((story) => (
+                    <Card key={story.id} className="rounded-3xl" data-testid={`card-story-${story.id}`}>
+                      <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0 pb-2">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl">{story.title}</CardTitle>
+                          <CardDescription className="mt-1">{story.summary}</CardDescription>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {getStatusBadge(story)}
+                          <span className="text-xs text-muted-foreground">
+                            {formatDate(story.createdAt)}
+                          </span>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {story.status === "draft" && story.rejectionReason && (
+                          <div className="mb-4 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                            <p className="text-sm font-medium text-destructive mb-1">Rejection Reason:</p>
+                            <p className="text-sm text-muted-foreground">{story.rejectionReason}</p>
+                          </div>
+                        )}
+                        <div className="flex gap-2 flex-wrap">
+                          {story.status === "draft" && (
+                            <>
+                              <Button
+                                onClick={() => handleEditStory(story)}
+                                className="rounded-2xl"
+                                data-testid={`button-edit-${story.id}`}
+                              >
+                                Edit Draft
+                              </Button>
+                              <Button
+                                onClick={() => submitStoryMutation.mutate(story.id)}
+                                disabled={submitStoryMutation.isPending}
+                                className="rounded-2xl"
+                                data-testid={`button-submit-${story.id}`}
+                              >
+                                Submit for Review
+                              </Button>
+                            </>
+                          )}
+                          {story.status === "pending_review" && (
+                            <p className="text-sm text-muted-foreground italic">
+                              Your story is being reviewed by an admin
+                            </p>
+                          )}
+                          {story.status === "published" && (
+                            <Button
+                              onClick={() => setLocation(`/child-mode?story=${story.id}`)}
+                              className="rounded-2xl"
+                              data-testid={`button-read-${story.id}`}
+                            >
+                              <Play className="w-4 h-4 mr-2" />
+                              Read Story
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </main>
       </div>
 
-      <Dialog open={showAddStory} onOpenChange={setShowAddStory}>
+      <Dialog open={showAddStory || !!editingStory} onOpenChange={(open) => {
+        if (!open) {
+          setShowAddStory(false);
+          setEditingStory(null);
+          form.reset();
+        }
+      }}>
         <DialogContent className="sm:max-w-2xl rounded-3xl max-h-[90vh] overflow-y-auto" data-testid="dialog-add-story">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl">Add New Story</DialogTitle>
-            <DialogDescription>Create a magical bedtime story for your child</DialogDescription>
+            <DialogTitle className="font-heading text-2xl">
+              {editingStory ? "Edit Draft Story" : "Submit Story for Review"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingStory 
+                ? "Make changes to your draft story"
+                : "Create a magical bedtime story. It will be reviewed by an admin before publishing."}
+            </DialogDescription>
           </DialogHeader>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit((data) => addStoryMutation.mutate(data))} className="space-y-6">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
               <FormField
                 control={form.control}
                 name="title"
@@ -290,8 +488,15 @@ export default function ParentDashboard() {
               />
 
               <DialogFooter>
-                <Button type="submit" className="rounded-2xl" disabled={addStoryMutation.isPending} data-testid="button-submit-story">
-                  {addStoryMutation.isPending ? "Adding..." : "Add Story"}
+                <Button 
+                  type="submit" 
+                  className="rounded-2xl" 
+                  disabled={addStoryMutation.isPending || updateStoryMutation.isPending} 
+                  data-testid="button-submit-story"
+                >
+                  {editingStory 
+                    ? (updateStoryMutation.isPending ? "Saving..." : "Save Draft")
+                    : (addStoryMutation.isPending ? "Creating..." : "Create Draft")}
                 </Button>
               </DialogFooter>
             </form>

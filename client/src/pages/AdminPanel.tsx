@@ -3,14 +3,17 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { BarChart3, Users, BookOpen, Bookmark, Trash2, ArrowLeft } from "lucide-react";
+import { BarChart3, Users, BookOpen, Bookmark, Trash2, ArrowLeft, CheckCircle, XCircle, Clock } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
 import type { Story } from "@shared/schema";
 
 interface AdminStats {
@@ -32,6 +35,8 @@ interface AdminUser {
 export default function AdminPanel() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const [reviewingStory, setReviewingStory] = useState<Story | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const { data: adminCheck, isLoading: checkingAdmin } = useQuery<{ isAdmin: boolean }>({
     queryKey: ["/api/admin/check"],
@@ -44,6 +49,11 @@ export default function AdminPanel() {
 
   const { data: allStories = [] } = useQuery<Story[]>({
     queryKey: ["/api/admin/stories"],
+    enabled: adminCheck?.isAdmin || false,
+  });
+
+  const { data: pendingStories = [] } = useQuery<Story[]>({
+    queryKey: ["/api/admin/pending-stories"],
     enabled: adminCheck?.isAdmin || false,
   });
 
@@ -112,6 +122,35 @@ export default function AdminPanel() {
       toast({
         title: "Error",
         description: "Failed to delete story. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const reviewStoryMutation = useMutation({
+    mutationFn: async ({ id, action, rejectionReason }: { id: string; action: "approve" | "reject"; rejectionReason?: string }) => {
+      const res = await apiRequest("POST", `/api/admin/review-story/${id}`, { action, rejectionReason });
+      return await res.json();
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/pending-stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stories"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stories/my-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stats"] });
+      toast({
+        title: variables.action === "approve" ? "Story approved!" : "Story rejected",
+        description: variables.action === "approve" 
+          ? "The story is now published and visible to all users." 
+          : "The story has been sent back to the author for revision.",
+      });
+      setReviewingStory(null);
+      setRejectionReason("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to review story. Please try again.",
         variant: "destructive",
       });
     },
@@ -196,11 +235,85 @@ export default function AdminPanel() {
               </Card>
             </div>
 
-            <Tabs defaultValue="stories" className="space-y-4">
+            <Tabs defaultValue="review" className="space-y-4">
               <TabsList data-testid="tabs-admin">
-                <TabsTrigger value="stories" data-testid="tab-stories">Stories</TabsTrigger>
+                <TabsTrigger value="review" data-testid="tab-review">
+                  Story Review {pendingStories.length > 0 && (
+                    <Badge variant="destructive" className="ml-2">{pendingStories.length}</Badge>
+                  )}
+                </TabsTrigger>
+                <TabsTrigger value="stories" data-testid="tab-stories">All Stories</TabsTrigger>
                 <TabsTrigger value="users" data-testid="tab-users">Users</TabsTrigger>
               </TabsList>
+
+              <TabsContent value="review">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Pending Story Reviews</CardTitle>
+                    <CardDescription>Review and approve or reject stories submitted by parents</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {pendingStories.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8" data-testid="text-no-pending">
+                        No stories pending review
+                      </p>
+                    ) : (
+                      <div className="space-y-4">
+                        {pendingStories.map((story) => (
+                          <Card key={story.id} className="rounded-2xl" data-testid={`card-pending-${story.id}`}>
+                            <CardHeader>
+                              <div className="flex items-start justify-between gap-4">
+                                <div className="flex-1">
+                                  <CardTitle className="text-lg">{story.title}</CardTitle>
+                                  <CardDescription className="mt-1">{story.summary}</CardDescription>
+                                  <div className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Badge variant="outline">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      Submitted {formatDate(story.createdAt)}
+                                    </Badge>
+                                    <Badge variant="secondary">{story.userId.slice(0, 12)}...</Badge>
+                                  </div>
+                                </div>
+                                <img 
+                                  src={story.imageUrl} 
+                                  alt={story.title}
+                                  className="w-24 h-24 rounded-lg object-cover"
+                                />
+                              </div>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="mb-4 p-3 rounded-lg bg-muted/50 max-h-32 overflow-y-auto">
+                                <p className="text-sm whitespace-pre-wrap">{story.content}</p>
+                              </div>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  onClick={() => reviewStoryMutation.mutate({ id: story.id, action: "approve" })}
+                                  disabled={reviewStoryMutation.isPending}
+                                  className="rounded-2xl"
+                                  data-testid={`button-approve-${story.id}`}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Approve & Publish
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  onClick={() => setReviewingStory(story)}
+                                  disabled={reviewStoryMutation.isPending}
+                                  className="rounded-2xl"
+                                  data-testid={`button-reject-${story.id}`}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
               <TabsContent value="stories">
                 <Card>
@@ -303,6 +416,61 @@ export default function AdminPanel() {
           </motion.div>
         </main>
       </div>
+
+      <Dialog open={!!reviewingStory} onOpenChange={(open) => {
+        if (!open) {
+          setReviewingStory(null);
+          setRejectionReason("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-md rounded-3xl" data-testid="dialog-reject-story">
+          <DialogHeader>
+            <DialogTitle>Reject Story</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting "{reviewingStory?.title}". The author will see this feedback.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Textarea
+              placeholder="Explain why this story cannot be published..."
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="rounded-2xl min-h-[120px]"
+              data-testid="input-rejection-reason"
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setReviewingStory(null);
+                setRejectionReason("");
+              }}
+              className="rounded-2xl"
+              data-testid="button-cancel-reject"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (reviewingStory) {
+                  reviewStoryMutation.mutate({
+                    id: reviewingStory.id,
+                    action: "reject",
+                    rejectionReason: rejectionReason || "Story did not meet quality standards",
+                  });
+                }
+              }}
+              disabled={reviewStoryMutation.isPending || !rejectionReason.trim()}
+              className="rounded-2xl"
+              data-testid="button-confirm-reject"
+            >
+              {reviewStoryMutation.isPending ? "Rejecting..." : "Reject Story"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
