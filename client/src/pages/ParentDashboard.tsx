@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -11,7 +11,7 @@ import { StoryCard } from "@/components/StoryCard";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { motion } from "framer-motion";
-import { Plus, Play, LogOut, BookmarkCheck, Shield, Clock, CheckCircle, XCircle, FileText } from "lucide-react";
+import { Plus, Play, LogOut, BookmarkCheck, Shield, Clock, CheckCircle, XCircle, FileText, Mic, Square, Trash2, Volume2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -32,6 +32,12 @@ export default function ParentDashboard() {
   const [showAddStory, setShowAddStory] = useState(false);
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [editingStory, setEditingStory] = useState<Story | null>(null);
+  
+  // Voice recording states
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   const { data: stories = [], isLoading } = useQuery<Story[]>({
     queryKey: ["/api/stories"],
@@ -135,8 +141,68 @@ export default function ParentDashboard() {
     setLocation("/");
   };
 
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const url = URL.createObjectURL(audioBlob);
+        setAudioUrl(url);
+        
+        // Convert blob to base64 data URL for storage
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64data = reader.result as string;
+          (form.setValue as any)('voiceoverUrl', base64data);
+        };
+        reader.readAsDataURL(audioBlob);
+        
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+      toast({ title: "Recording started", description: "Start reading your story!" });
+    } catch (error) {
+      console.error("Error accessing microphone:", error);
+      toast({ 
+        title: "Microphone error", 
+        description: "Could not access your microphone. Please check permissions.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+      toast({ title: "Recording stopped", description: "Your voiceover has been saved!" });
+    }
+  };
+
+  const deleteRecording = () => {
+    if (audioUrl) {
+      URL.revokeObjectURL(audioUrl);
+    }
+    setAudioUrl(null);
+    (form.setValue as any)('voiceoverUrl', undefined);
+    toast({ title: "Recording deleted" });
+  };
+
   const handleEditStory = (story: Story) => {
     setEditingStory(story);
+    setAudioUrl(story.voiceoverUrl || null);
     form.reset({
       title: story.title,
       content: story.content,
@@ -452,6 +518,80 @@ export default function ParentDashboard() {
                         {...field}
                         data-testid="input-story-content"
                       />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name={"voiceoverUrl" as any}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Voice Recording (Optional)</FormLabel>
+                    <FormControl>
+                      <div className="space-y-3">
+                        {!audioUrl && !isRecording && (
+                          <Button
+                            type="button"
+                            onClick={startRecording}
+                            variant="outline"
+                            className="rounded-2xl w-full"
+                            data-testid="button-start-recording"
+                          >
+                            <Mic className="w-4 h-4 mr-2" />
+                            Start Recording Voiceover
+                          </Button>
+                        )}
+                        
+                        {isRecording && (
+                          <div className="p-4 border-2 border-primary rounded-2xl bg-primary/5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
+                                <span className="font-medium">Recording...</span>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={stopRecording}
+                                variant="destructive"
+                                size="sm"
+                                className="rounded-2xl"
+                                data-testid="button-stop-recording"
+                              >
+                                <Square className="w-4 h-4 mr-2" />
+                                Stop
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {audioUrl && !isRecording && (
+                          <div className="p-4 border-2 rounded-2xl space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Volume2 className="w-4 h-4 text-primary" />
+                                <span className="font-medium">Voiceover Ready</span>
+                              </div>
+                              <Button
+                                type="button"
+                                onClick={deleteRecording}
+                                variant="ghost"
+                                size="sm"
+                                className="rounded-2xl"
+                                data-testid="button-delete-recording"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </div>
+                            <audio src={audioUrl} controls className="w-full" data-testid="audio-player" />
+                            <p className="text-xs text-muted-foreground">
+                              Your voiceover will be played when children read this story
+                            </p>
+                          </div>
+                        )}
+                      </div>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
