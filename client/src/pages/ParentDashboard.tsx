@@ -9,7 +9,7 @@ import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { StoryCard } from "@/components/StoryCard";
 import { motion } from "framer-motion";
-import { Plus, Play, LogOut, BookmarkCheck } from "lucide-react";
+import { Plus, Play, LogOut, BookmarkCheck, Shield } from "lucide-react";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -36,6 +36,10 @@ export default function ParentDashboard() {
 
   const { data: bookmarks = [] } = useQuery<string[]>({
     queryKey: ["/api/bookmarks"],
+  });
+
+  const { data: adminCheck } = useQuery<{ isAdmin: boolean }>({
+    queryKey: ["/api/admin/check"],
   });
 
   const storiesWithBookmarks = stories.map(story => ({
@@ -107,6 +111,17 @@ export default function ParentDashboard() {
           <div className="container mx-auto px-4 py-4 flex justify-between items-center gap-4">
             <h1 className="font-heading text-2xl md:text-3xl text-foreground">Parent Dashboard</h1>
             <div className="flex items-center gap-2">
+              {adminCheck?.isAdmin && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setLocation("/admin")}
+                  className="rounded-2xl"
+                  data-testid="button-admin"
+                >
+                  <Shield className="w-4 h-4" />
+                </Button>
+              )}
               <ThemeToggle />
               <Button
                 variant="ghost"

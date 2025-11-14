@@ -10,6 +10,7 @@ import AuthPage from "@/pages/AuthPage";
 import ChildLockSetupPage from "@/pages/ChildLockSetupPage";
 import ParentDashboard from "@/pages/ParentDashboard";
 import ChildModePage from "@/pages/ChildModePage";
+import AdminPanel from "@/pages/AdminPanel";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
       <Route path="/setup" component={ChildLockSetupPage} />
       <Route path="/dashboard" component={ParentDashboard} />
       <Route path="/child-mode" component={ChildModePage} />
+      <Route path="/admin" component={AdminPanel} />
       <Route component={NotFound} />
     </Switch>
   );
