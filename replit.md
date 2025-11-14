@@ -31,8 +31,10 @@ StoryNest is a fully responsive web application built with React, Express, and F
 ## Data Models
 
 ### Story
-- id, userId, title, content, imageUrl, summary, createdAt
+- id, userId, title, content, imageUrl, summary, createdAt, status, rejectionReason
 - User-created bedtime stories with images
+- Status workflow: draft → pending_review → published (or back to draft with rejection reason)
+- Only published stories appear on public feed
 
 ### Parent Settings
 - userId, pinHash (hashed with PBKDF2), readingTimeLimit, fullscreenLockEnabled, theme
@@ -57,6 +59,8 @@ StoryNest is a fully responsive web application built with React, Express, and F
 - **Read Aloud**: Web Speech API for story narration
 - **Child Lock**: Fullscreen mode with PIN-protected exit
 - **Responsive Design**: Mobile-first with rounded-3xl cards and playful UI
+- **Secret Admin Access**: Type "786786" and press Enter from anywhere to access admin panel
+- **Story Review Workflow**: Parents submit stories for admin approval before publication
 
 ## Firebase Setup
 
@@ -81,11 +85,16 @@ StoryNest is a fully responsive web application built with React, Express, and F
 
 ## Recent Changes
 
+- Implemented story submission and review workflow (draft → pending_review → published)
+- Added dual-tab Parent Dashboard (Published Stories / Your Stories)
+- Created Admin Panel Story Review tab with approve/reject functionality
+- Added rejection reason tracking and resubmission cycle
+- Implemented secret admin code (786786 + Enter) for quick admin access
+- Fixed cache invalidation for real-time status updates
+- Added status guards to prevent unauthorized status changes
 - Fixed schema alignment (added userId, createdAt to Story)
 - Implemented PIN hashing for security
-- Fixed Firebase storage bucket URL
 - Added proper Zod validation for all endpoints
-- Enhanced error handling in PIN verification
 
 ## Development
 
