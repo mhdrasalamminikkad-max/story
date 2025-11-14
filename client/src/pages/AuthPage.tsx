@@ -23,15 +23,34 @@ export default function AuthPage() {
       
       // Ensure we have a valid token before proceeding
       if (user) {
-        await user.getIdToken(true);
+        const token = await user.getIdToken(true);
+        
+        // Check if parent settings already exist
+        const response = await fetch("/api/parent-settings", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
+        
+        if (response.ok) {
+          // Settings exist, go to dashboard
+          toast({
+            title: "Welcome back!",
+            description: "Taking you to your dashboard.",
+          });
+          setLocation("/dashboard");
+        } else if (response.status === 404) {
+          // No settings, go to setup
+          toast({
+            title: "Welcome to StoryNest!",
+            description: "Let's set up your child lock preferences.",
+          });
+          setLocation("/setup");
+        } else {
+          // Some other error
+          setLocation("/setup");
+        }
       }
-      
-      toast({
-        title: "Welcome to StoryNest!",
-        description: "Let's set up your child lock preferences.",
-      });
-      
-      setLocation("/setup");
     } catch (error) {
       console.error("Error signing in:", error);
       toast({
