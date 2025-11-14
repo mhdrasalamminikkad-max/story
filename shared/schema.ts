@@ -8,14 +8,35 @@ export const storySchema = z.object({
   content: z.string(),
   imageUrl: z.string(),
   summary: z.string(),
+  voiceoverUrl: z.string().optional(),
+  status: z.enum(["published", "pending_review", "rejected", "draft"]),
+  approvedBy: z.string().optional(),
+  rejectionReason: z.string().optional(),
   createdAt: z.number(),
+  reviewedAt: z.number().optional(),
   isBookmarked: z.boolean().optional(),
 });
 
-export const insertStorySchema = storySchema.omit({ id: true, createdAt: true, userId: true, isBookmarked: true });
+export const insertStorySchema = storySchema.omit({ 
+  id: true, 
+  createdAt: true, 
+  userId: true, 
+  isBookmarked: true, 
+  approvedBy: true,
+  reviewedAt: true,
+  status: true
+}).extend({
+  voiceoverUrl: z.string().optional(),
+});
+
+export const reviewStorySchema = z.object({
+  action: z.enum(["approve", "reject"]),
+  rejectionReason: z.string().optional(),
+});
 
 export type Story = z.infer<typeof storySchema>;
 export type InsertStory = z.infer<typeof insertStorySchema>;
+export type ReviewStory = z.infer<typeof reviewStorySchema>;
 
 // Parent settings schema for child lock and preferences
 export const parentSettingsSchema = z.object({

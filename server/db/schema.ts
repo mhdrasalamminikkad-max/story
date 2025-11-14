@@ -8,7 +8,12 @@ export const stories = pgTable("stories", {
   content: text("content").notNull(),
   imageUrl: text("image_url").notNull(),
   summary: text("summary").notNull(),
+  voiceoverUrl: text("voiceover_url"),
+  status: varchar("status", { length: 20 }).notNull().default("draft"),
+  approvedBy: varchar("approved_by"),
+  rejectionReason: text("rejection_reason"),
   createdAt: timestamp("created_at").notNull().default(sql`now()`),
+  reviewedAt: timestamp("reviewed_at"),
 });
 
 export const parentSettings = pgTable("parent_settings", {
