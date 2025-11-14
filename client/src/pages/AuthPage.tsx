@@ -1,39 +1,42 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { AnimatedBackground } from "@/components/AnimatedBackground";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { motion } from "framer-motion";
-import { LogIn, Sparkles, UserPlus } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import { SiGoogle } from "react-icons/si";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { fakeAuth } from "@/lib/auth";
+import { useAuth } from "@/contexts/AuthContext";
 
 export default function AuthPage() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const { signInWithGoogle } = useAuth();
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleSignIn = async () => {
     setLoading(true);
-
-    setTimeout(() => {
-      fakeAuth.signIn(email);
+    try {
+      await signInWithGoogle();
       
       toast({
-        title: isSignUp ? "Account created!" : "Welcome back!",
+        title: "Welcome to StoryNest!",
         description: "Let's set up your child lock preferences.",
       });
       
-      setLoading(false);
       setLocation("/setup");
-    }, 500);
+    } catch (error) {
+      console.error("Error signing in:", error);
+      toast({
+        title: "Sign in failed",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -70,70 +73,25 @@ export default function AuthPage() {
                 </motion.div>
                 <CardTitle className="font-heading text-3xl">Welcome to StoryNest</CardTitle>
                 <CardDescription className="text-base">
-                  {isSignUp ? "Create an account" : "Sign in"} to access magical bedtime stories
+                  Sign in with Google to access magical bedtime stories
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                      className="rounded-xl"
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full rounded-2xl text-lg py-6"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      "Please wait..."
-                    ) : isSignUp ? (
-                      <>
-                        <UserPlus className="w-5 h-5 mr-2" />
-                        Sign Up
-                      </>
-                    ) : (
-                      <>
-                        <LogIn className="w-5 h-5 mr-2" />
-                        Sign In
-                      </>
-                    )}
-                  </Button>
-                  <div className="text-center">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setIsSignUp(!isSignUp)}
-                      className="text-sm"
-                    >
-                      {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
-                    </Button>
-                  </div>
-                  <p className="text-xs text-center text-muted-foreground">
-                    By signing in, you agree to create a safe, magical reading environment for your child
-                  </p>
-                </form>
+              <CardContent className="space-y-4">
+                <Button
+                  onClick={handleGoogleSignIn}
+                  size="lg"
+                  variant="outline"
+                  className="w-full rounded-2xl text-lg py-6 gap-3"
+                  disabled={loading}
+                  data-testid="button-google-signin"
+                >
+                  <SiGoogle className="w-5 h-5" />
+                  {loading ? "Signing in..." : "Continue with Google"}
+                </Button>
+                
+                <p className="text-xs text-center text-muted-foreground px-4">
+                  By signing in, you agree to create a safe, magical reading environment for your child
+                </p>
               </CardContent>
             </Card>
           </motion.div>
